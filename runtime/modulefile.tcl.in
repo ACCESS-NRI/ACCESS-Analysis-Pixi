@@ -1,0 +1,17 @@
+#%Module1.0
+module-whatis "Prepare the Pixi Python 3.12 Jupyter kernel on ARE JOBFS"
+if {[module-info mode load]} {
+    foreach required {PBS_JOBID PBS_JOBFS CONFIG_FILE} {
+        if {![info exists env($required)] || $env($required) eq ""} {
+            error "This module requires an ARE Jupyter PBS job ($required missing)"
+        }
+    }
+    if {![file isfile $env(CONFIG_FILE)]} {
+        error "ARE Jupyter config does not exist"
+    }
+    set script @RELEASE@/bin/are-prescript.sh
+    set status [system $script]
+    if {$status != 0} {
+        error "Pixi JOBFS setup failed (exit $status); inspect the ARE job log"
+    }
+}

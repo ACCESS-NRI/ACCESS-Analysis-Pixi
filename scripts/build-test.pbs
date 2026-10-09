@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# qsub supplies project, queue, storage, resources and GADI_RUN_DIR.
+set -Eeuo pipefail
+umask 022
+: "${GADI_RUN_DIR:?}"
+: "${PBS_JOBID:?}"
+repo="$GADI_RUN_DIR/repo"
+work="$GADI_RUN_DIR/work"
+artifact="$GADI_RUN_DIR/artifact"
+status="$GADI_RUN_DIR/status"
+finish() { rc=$?; printf '%s\n' "$rc" > "$status"; exit "$rc"; }
+trap finish EXIT
+trap 'printf "failed line=%s command=%s\n" "$LINENO" "$BASH_COMMAND" >&2' ERR
+source "$repo/config/pins.env"
+test -d "$repo" && test -f "$repo/pixi.lock"
+test ! -e "$status"
+mkdir -p "$work/project" "$work/cache" "$work/tmp" "$work/xdg" "$work/pixi-home" "$artifact/bin"
+printf '%s  %s\n' "$PIXI_SHA256" "$PIXI_SOURCE" | sha256sum -c -
+test "$("$PIXI_SOURCE" --version)" = "pixi $PIXI_VERSION"
+cp "$PIXI_SOURCE" "$artifact/bin/pixi"
+chmod 755 "$artifact/bin/pixi"
+cp "$repo/pixi.toml" "$work/project/pixi.toml"
+cp "$repo/pixi.lock" "$work/project/pixi.lock"
+export PIXI_CACHE_DIR="$work/cache" PIXI_HOME="$work/pixi-home" TMPDIR="$work/tmp" XDG_CACHE_HOME="$work/xdg"
+export PYTHONNOUSERSITE=1
+unset PYTHONPATH PYTHONHOME PIXI_OFFLINE
+"$artifact/bin/pixi" install --locked --manifest-path "$work/project/pixi.toml"
+"$repo/scripts/import-check.sh" "$work/project/.pixi/envs/default/bin/python"
+rm -rf "$work/project/.pixi"
+tar -C "$work" -czf "$artifact/archive.tar.gz" cache project/pixi.toml project/pixi.lock
+( cd "$artifact" && sha256sum archive.tar.gz > archive.tar.gz.sha256 && sha256sum bin/pixi > pixi.sha256 )
+
+# Relocate the archive and install using only its cache. This is the PR gate.
+mkdir "$work/verify"
+tar -xzf "$artifact/archive.tar.gz" -C "$work/verify"
+mkdir -p "$work/verify/pixi-home" "$work/verify/tmp" "$work/verify/xdg"
+cmp "$repo/pixi.toml" "$work/verify/project/pixi.toml"
+cmp "$repo/pixi.lock" "$work/verify/project/pixi.lock"
+PIXI_CACHE_DIR="$work/verify/cache" PIXI_HOME="$work/verify/pixi-home" \
+  TMPDIR="$work/verify/tmp" XDG_CACHE_HOME="$work/verify/xdg" PIXI_OFFLINE=true \
+  "$artifact/bin/pixi" install --locked --manifest-path "$work/verify/project/pixi.toml"
+"$repo/scripts/import-check.sh" "$work/verify/project/.pixi/envs/default/bin/python"
+printf 'build_and_offline_test_passed archive_bytes=%s\n' "$(stat -c %s "$artifact/archive.tar.gz")"

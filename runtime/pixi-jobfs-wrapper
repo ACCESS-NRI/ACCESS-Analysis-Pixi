@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+: "${PIXI_REAL:?The ARE Pixi release is not set}"
+if [[ ${1:-} == add && -n ${PIXI_JOBFS_PROJECT:-} ]]; then
+    explicit_manifest=false
+    for arg in "$@"; do
+        case "$arg" in
+            -m|--manifest-path|--manifest-path=*) explicit_manifest=true ;;
+        esac
+    done
+    if ! $explicit_manifest; then
+        manifest="$PIXI_JOBFS_PROJECT/pixi.toml"
+        [[ -f $manifest ]] || { echo "Missing JOBFS manifest: $manifest" >&2; exit 1; }
+        exec "$PIXI_REAL" add --manifest-path "$manifest" "${@:2}"
+    fi
+fi
+exec "$PIXI_REAL" "$@"

@@ -1,0 +1,15 @@
+[workspace]
+name = "are-jobfs-science"
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[dependencies]
+python = "3.12.*"
+ipykernel = "*"
+numpy = "*"
+scipy = "*"
+xarray = "*"
+matplotlib = "*"
+scikit-image = "*"
+networkx = "*"
+zarr = "*"

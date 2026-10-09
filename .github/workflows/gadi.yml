@@ -1,0 +1,68 @@
+name: Pixi JOBFS build and release
+
+'on':
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gadi-pixi-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  local-check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Require reviewed in-repository PR for Gadi access
+        if: github.event_name == 'pull_request'
+        run: test '${{ github.event.pull_request.head.repo.full_name }}' = "$GITHUB_REPOSITORY"
+      - run: bash scripts/check.sh
+      - run: bash tests/smoke-deploy.sh
+      - run: bash tests/failure-status.sh
+
+  gadi:
+    needs: local-check
+    runs-on: ubuntu-24.04
+    environment: ${{ github.event_name == 'push' && 'gadi-production' || 'gadi-pr' }}
+    env:
+      GADI_HOST: ${{ secrets.GADI_HOST }}
+      GADI_USER: ${{ secrets.GADI_USER }}
+      GADI_SSH_KEY: ${{ secrets.GADI_SSH_KEY }}
+      GADI_KNOWN_HOSTS: ${{ secrets.GADI_KNOWN_HOSTS }}
+      GADI_STAGE_ROOT: ${{ vars.GADI_STAGE_ROOT }}
+      GADI_PROJECT: ${{ vars.GADI_PROJECT }}
+      GADI_STORAGE: ${{ vars.GADI_STORAGE }}
+      GADI_BUILD_QUEUE: ${{ vars.GADI_BUILD_QUEUE }}
+      GADI_DEPLOY_ROOT: ${{ vars.GADI_DEPLOY_ROOT }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Build and offline test in temporary Gadi scratch
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ $GADI_HOST =~ ^[A-Za-z0-9.-]+$ && $GADI_USER =~ ^[A-Za-z0-9_-]+$ ]]
+          [[ $GADI_STAGE_ROOT =~ ^/scratch/[a-z0-9]+/[A-Za-z0-9_/-]+$ ]]
+          [[ $GADI_PROJECT =~ ^[a-z0-9]+$ && $GADI_BUILD_QUEUE =~ ^[a-z0-9]+$ ]]
+          [[ $GADI_STORAGE =~ ^[a-z0-9/+]+$ ]]
+          test -n "$GADI_SSH_KEY" && test -n "$GADI_KNOWN_HOSTS"
+          umask 077
+          printf '%s\n' "$GADI_SSH_KEY" > "$RUNNER_TEMP/gadi_key"
+          printf '%s\n' "$GADI_KNOWN_HOSTS" > "$RUNNER_TEMP/gadi_known_hosts"
+          remote="$GADI_USER@$GADI_HOST"
+          run_dir="$GADI_STAGE_ROOT/$GITHUB_EVENT_NAME-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$GITHUB_SHA"
+          ssh_opts=(-F /dev/null -i "$RUNNER_TEMP/gadi_key" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/gadi_known_hosts")
+          ssh "${ssh_opts[@]}" "$remote" "mkdir -p '$run_dir/repo'"
+          rsync -a -e "ssh -F /dev/null -i $RUNNER_TEMP/gadi_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$RUNNER_TEMP/gadi_known_hosts" \
+            --exclude .git ./ "$remote:$run_dir/repo/"
+          ssh "${ssh_opts[@]}" "$remote" \
+            "GADI_RUN_DIR='$run_dir' GADI_PROJECT='$GADI_PROJECT' GADI_STORAGE='$GADI_STORAGE' GADI_BUILD_QUEUE='$GADI_BUILD_QUEUE' bash '$run_dir/repo/scripts/gadi-run.sh'"
+          if [[ $GITHUB_EVENT_NAME == push ]]; then
+            [[ $GADI_DEPLOY_ROOT =~ ^/g/data/[a-z0-9]+/public/apps/[A-Za-z0-9][A-Za-z0-9_.-]*$ ]]
+            ssh "${ssh_opts[@]}" "$remote" \
+              "GADI_RUN_DIR='$run_dir' GADI_DEPLOY_ROOT='$GADI_DEPLOY_ROOT' RELEASE_SHA='$GITHUB_SHA' bash '$run_dir/repo/scripts/deploy.sh'"
+          fi
