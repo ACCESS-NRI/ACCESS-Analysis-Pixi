@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 repo=$(cd "$(dirname "$0")/.." && pwd -P)
-temp=$(mktemp -d /tmp/gadi-pixi-smoke.XXXXXX)
+temp=$(mktemp -d /tmp/access-analysis-pixi-smoke.XXXXXX)
 cleanup() { find "$temp" -type d -exec chmod u+w {} +; rm -rf -- "$temp"; }
 trap cleanup EXIT
 root="$temp/release-root"
@@ -30,7 +30,7 @@ if ALLOW_TEST_ROOT=1 GADI_DEPLOY_ROOT="$root" GADI_RUN_DIR="$stage" RELEASE_SHA=
 fi
 test "$(readlink "$root/modulefiles/are-pixi/current")" = "r-$second"
 mv "$temp/good.sha256" "$stage/artifact/archive.tar.gz.sha256"
-ALLOW_TEST_ROOT=1 GADI_DEPLOY_ROOT="$root" bash "$repo/scripts/rollback.sh" "r-$first"
+ALLOW_TEST_ROOT=1 GADI_DEPLOY_ROOT="$root" bash "$root/releases/r-$second/bin/rollback.sh" "r-$first"
 test "$(readlink "$root/modulefiles/are-pixi/current")" = "r-$first"
 test -f "$root/releases/r-$second/archive.tar.gz"
 printf 'local deploy and rollback smoke passed\n'

@@ -35,6 +35,7 @@ if [[ ! -e $release_dir ]]; then
     install -m 0755 "$GADI_RUN_DIR/repo/runtime/are-prescript.sh" "$temp/bin/are-prescript.sh"
     install -m 0755 "$GADI_RUN_DIR/repo/runtime/pixi-jobfs-wrapper" "$temp/bin/pixi-jobfs-wrapper"
     install -m 0755 "$GADI_RUN_DIR/repo/scripts/import-check.sh" "$temp/bin/import-check.sh"
+    install -m 0755 "$GADI_RUN_DIR/repo/scripts/rollback.sh" "$temp/bin/rollback.sh"
     install -m 0644 "$GADI_RUN_DIR/repo/pixi.toml" "$GADI_RUN_DIR/repo/pixi.lock" "$temp/"
     ( cd "$temp" && sha256sum -c archive.tar.gz.sha256 && sha256sum -c pixi.sha256 )
     chmod -R a-w "$temp"

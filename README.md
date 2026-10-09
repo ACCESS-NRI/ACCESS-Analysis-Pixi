@@ -1,6 +1,6 @@
-# Pixi on ARE JOBFS deployment scaffold
+# ACCESS-Analysis-Pixi
 
-`gadi-pixi` is a **working directory name**, not the decided public repository or module name. This repository prepares a separately managed successor to the local Pixi pilot (`are-jobfs-packed-env-pilot/`). It has not been deployed. Its scripts refuse to publish into the pilot tree.
+This repository prepares a separately managed successor to the local Pixi pilot (`are-jobfs-packed-env-pilot/`). `ACCESS-Analysis-Pixi` is the repository name; the existing ARE module interface remains `are-pixi`. It has not been deployed. Its scripts refuse to publish into the pilot tree. Follow the [GitHub-to-Gadi deployment guide](docs/deployment.md) before enabling production.
 
 ## What is pinned
 
@@ -12,17 +12,17 @@ The pilot archive was 496,932,877 bytes and its offline relocation passed on Gad
 
 ## Release flow
 
-1. A PR runs a local manifest, lock hash, and shell syntax check. A protected `gadi-pr` environment then stages that exact checkout under `/scratch/<project>/...`, builds with `pixi install --locked`, and tests the archive by unpacking into a second prefix and installing with `PIXI_OFFLINE=true`. It imports Python 3.12 and the scientific packages there. The PR credential must have scratch write access and **no production write access**. Fork PRs fail the Gadi job until moved to a reviewed branch in the repository.
-2. Branch protection requires the local and Gadi checks and reviews before merge. A push to protected `main` repeats the build and offline test for the merged commit under a separate protected `gadi-production` environment, then deploys `r-<full commit SHA>` into its own immutable directory. It never promotes a PR build.
+1. A PR runs a local manifest, lock hash, and shell syntax check. A protected `gadi-pr` environment then stages that exact checkout under `/scratch/<project>/...`, builds with `pixi install --locked`, and tests the archive by unpacking into a second prefix and installing with `PIXI_OFFLINE=true`. It imports Python 3.12 and the scientific packages there. The PR credential must have scratch write access and **no production write access**. Fork PRs fail the local gate until moved to a reviewed branch in the repository.
+2. Branch protection requires the local and Gadi checks and reviews before merge. Once the repository variable `GADI_DEPLOY_ENABLED` is `true`, a push to protected `main` repeats the build and offline test for the merged commit under a separate protected `gadi-production` environment, then deploys `r-<full commit SHA>` into its own immutable directory. The first release can also be started manually on `main`. It never promotes a PR build.
 3. Deployment verifies archive and Pixi checksums, copies the runtime and lock, creates a versioned modulefile, and atomically points `modulefiles/are-pixi/current` at it. Existing versions are kept. `rollback.sh` moves only that pointer to a previously verified release.
 
-The production root must be a **new, dedicated** `/g/data/<project>/public/apps/<name>` directory. Never set it to the pilot directory or an existing application directory. The scripts do not perform any Gadi write until someone explicitly enables the workflows with credentials and a production root.
+The production root must be a **new, dedicated** `/g/data/<project>/public/apps/<name>` directory. Never set it to the pilot directory or an existing application directory. PR jobs write only to scratch; the GitHub production job requires the enable variable, a configured production environment, and its approval.
 
 The reference [ACCESS-Analysis-Conda repository](https://github.com/ACCESS-NRI/ACCESS-Analysis-Conda) describes PR builds in temporary locations and post-merge deployment. Its current [PR workflow](https://github.com/ACCESS-NRI/ACCESS-Analysis-Conda/blob/main/.github/workflows/pull_request.yml) calls its [build workflow](https://github.com/ACCESS-NRI/ACCESS-Analysis-Conda/blob/main/.github/workflows/build.yml), while its separate test job is currently commented out; its [push workflow](https://github.com/ACCESS-NRI/ACCESS-Analysis-Conda/blob/main/.github/workflows/push_to_main.yml) calls [deploy](https://github.com/ACCESS-NRI/ACCESS-Analysis-Conda/blob/main/.github/workflows/deploy.yml). This scaffold makes the offline test mandatory and rechecks on merge.
 
 ## GitHub and Gadi setup before enabling
 
-1. Decide the public repository and module names and a license. Create the repository and protect `main`: require a PR, review of workflow and script changes, and both `local-check` and `gadi` status checks. Disable direct pushes except authorised maintainers. Set GitHub environments `gadi-pr` and `gadi-production` with required reviewers. Limit production environment use to `main`. The PR approval protects SSH credentials from unreviewed code; use distinct Gadi accounts or permissions so the PR key cannot write the release root.
+1. Create the `ACCESS-Analysis-Pixi` repository and choose a license. Protect `main`: require a PR, review of workflow and script changes, and both `local-check` and `gadi` status checks. Disable direct pushes except authorised maintainers. Set GitHub environments `gadi-pr` and `gadi-production` with required reviewers. Limit production environment use to `main`. The PR approval protects SSH credentials from unreviewed code; use distinct Gadi accounts or permissions so the PR key cannot write the release root. Keep the repository variable `GADI_DEPLOY_ENABLED` unset until the Gadi setup is ready.
 2. In **each** environment set secrets `GADI_HOST`, `GADI_USER`, `GADI_SSH_KEY`, and `GADI_KNOWN_HOSTS` (the verified host key, not `ssh-keyscan` at job time). Set variables `GADI_STAGE_ROOT`, `GADI_PROJECT`, `GADI_STORAGE`, and `GADI_BUILD_QUEUE`. In production also set `GADI_DEPLOY_ROOT`. Example stage root: `/scratch/iq82/ci/pixi-jobfs`; example storage: `scratch/iq82+gdata/xp65` for the pilot binary read. The selected identity needs project membership, PBS submission rights, scratch quota, and read permission on the pilot binary. Production additionally needs write access to only its dedicated root. Check directory group/ACL policy with the project owner before enabling; the scripts use world-readable files and do not change unrelated ACLs. An administrator must create the new empty root and a `.pixi-jobfs-release-root` file containing exactly `pixi-jobfs-v1`; deploy and rollback refuse an unmarked or symlinked root.
 3. Confirm a queue in `GADI_BUILD_QUEUE` where the build job can reach conda-forge (and any configured proxy). The pilot `copyq` request could not schedule with JOBFS and the successful build used an ARE allocation. This scaffold requests **no JOBFS for its build** and uses scratch for the cache. If the chosen queue cannot fetch packages, the build fails before deployment; select an approved internet-capable build route. NCI's [PBS Python guidance](https://opus.nci.org.au/spaces/Help/pages/248840704/Python...) requires a `storage` request for every scratch or gdata project a job accesses.
 4. Trial a PR with the restricted account, inspect the scratch logs and status, then merge only after the offline test is green. Trial the production identity against a disposable dedicated root before selecting the real root. Arrange retention/cleanup for old CI scratch directories after logs and artifacts have been recorded; this scaffold leaves them for audit and never deletes them automatically.
@@ -39,10 +39,11 @@ In the kernel or ARE terminal, `pixi add seaborn` and `pixi add --pypi humanize`
 
 ## Rollback and verification
 
-From an authorised Gadi account, set `GADI_DEPLOY_ROOT` to the dedicated root and run:
+From an authorised Gadi account, set `GADI_DEPLOY_ROOT` to the dedicated root and run the rollback script in the active release:
 
 ```bash
-bash scripts/rollback.sh r-<previous-full-commit-SHA>
+active=$(readlink "$GADI_DEPLOY_ROOT/modulefiles/are-pixi/current")
+bash "$GADI_DEPLOY_ROOT/releases/$active/bin/rollback.sh" r-<previous-full-commit-SHA>
 readlink "$GADI_DEPLOY_ROOT/modulefiles/are-pixi/current"
 ```
 

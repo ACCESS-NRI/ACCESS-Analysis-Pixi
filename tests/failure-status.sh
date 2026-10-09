@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 repo=$(cd "$(dirname "$0")/.." && pwd -P)
-temp=$(mktemp -d /tmp/gadi-pixi-failure.XXXXXX)
+temp=$(mktemp -d /tmp/access-analysis-pixi-failure.XXXXXX)
 trap 'rm -rf -- "$temp"' EXIT
 mkdir -p "$temp/repo/config"
 printf 'PIXI_SOURCE=/missing-pixi\nPIXI_SHA256=0000000000000000000000000000000000000000000000000000000000000000\nPIXI_VERSION=0\n' > "$temp/repo/config/pins.env"

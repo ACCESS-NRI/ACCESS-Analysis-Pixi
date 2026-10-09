@@ -1,16 +1,17 @@
-name: Pixi JOBFS build and release
+name: ACCESS-Analysis-Pixi build and release
 
 'on':
   pull_request:
     branches: [main]
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: gadi-pixi-${{ github.ref }}
+  group: access-analysis-pixi-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -27,8 +28,9 @@ jobs:
 
   gadi:
     needs: local-check
+    if: ${{ github.event_name == 'pull_request' || (github.ref == 'refs/heads/main' && vars.GADI_DEPLOY_ENABLED == 'true') }}
     runs-on: ubuntu-24.04
-    environment: ${{ github.event_name == 'push' && 'gadi-production' || 'gadi-pr' }}
+    environment: ${{ github.event_name == 'pull_request' && 'gadi-pr' || 'gadi-production' }}
     env:
       GADI_HOST: ${{ secrets.GADI_HOST }}
       GADI_USER: ${{ secrets.GADI_USER }}
@@ -61,7 +63,7 @@ jobs:
             --exclude .git ./ "$remote:$run_dir/repo/"
           ssh "${ssh_opts[@]}" "$remote" \
             "GADI_RUN_DIR='$run_dir' GADI_PROJECT='$GADI_PROJECT' GADI_STORAGE='$GADI_STORAGE' GADI_BUILD_QUEUE='$GADI_BUILD_QUEUE' bash '$run_dir/repo/scripts/gadi-run.sh'"
-          if [[ $GITHUB_EVENT_NAME == push ]]; then
+          if [[ $GITHUB_EVENT_NAME != pull_request ]]; then
             [[ $GADI_DEPLOY_ROOT =~ ^/g/data/[a-z0-9]+/public/apps/[A-Za-z0-9][A-Za-z0-9_.-]*$ ]]
             ssh "${ssh_opts[@]}" "$remote" \
               "GADI_RUN_DIR='$run_dir' GADI_DEPLOY_ROOT='$GADI_DEPLOY_ROOT' RELEASE_SHA='$GITHUB_SHA' bash '$run_dir/repo/scripts/deploy.sh'"
