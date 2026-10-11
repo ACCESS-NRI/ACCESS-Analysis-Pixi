@@ -3,6 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 source config/pins.env
 sha256sum -c <(printf '%s  %s\n%s  %s\n' "$LOCK_SHA256" pixi.lock "$MANIFEST_SHA256" pixi.toml)
+test -x scripts/import-check.sh || { echo 'scripts/import-check.sh must be executable' >&2; exit 1; }
 for script in scripts/*.sh runtime/*.sh runtime/pixi-jobfs-wrapper scripts/*.pbs; do
     bash -n "$script"
 done
