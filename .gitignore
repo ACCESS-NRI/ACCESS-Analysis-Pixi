@@ -2,4 +2,5 @@
 *.partial
 *.log
 .pixi/
+.bootstrap/
 __pycache__/

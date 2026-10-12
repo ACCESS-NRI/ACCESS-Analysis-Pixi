@@ -12,6 +12,7 @@ finish() { rc=$?; printf '%s\n' "$rc" > "$status"; exit "$rc"; }
 trap finish EXIT
 trap 'printf "failed line=%s command=%s\n" "$LINENO" "$BASH_COMMAND" >&2' ERR
 source "$repo/config/pins.env"
+PIXI_SOURCE="$repo/.bootstrap/pixi"
 test -d "$repo" && test -f "$repo/pixi.lock"
 test ! -e "$status"
 mkdir -p "$work/project" "$work/cache" "$work/tmp" "$work/xdg" "$work/pixi-home" "$artifact/bin"
