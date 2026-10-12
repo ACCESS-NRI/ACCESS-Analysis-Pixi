@@ -24,7 +24,7 @@ Choose the build PBS project and an internet-capable queue. Confirm that the cho
 - Give the **PR identity** permission to submit PBS jobs and write only its dedicated scratch staging tree. It must have no write permission to the production release root or its parent.
 - Give the **production identity** the same build access plus write access to one new dedicated release root. Confirm group and ACL access so ARE users can read releases and modulefiles. Do not alter any other `xp65` path.
 - Create a fresh production root matching `/g/data/<release-project>/public/apps/<name>`; `ACCESS-Analysis-Pixi` is a suitable `<name>`. Ensure that root did not previously belong to another application. Inside it, create `.pixi-jobfs-release-root` with the single line `pixi-jobfs-v1`. The deploy and rollback scripts refuse an unmarked root or one that is a symlink.
-- Reserve distinct staging roots under `/scratch/<build-project>/...` for PR and production runs. The workflow creates a unique run directory below each root and leaves it for log review and a later retention cleanup.
+- Reserve distinct staging roots under `/scratch/<build-project>/...` for PR and production runs. The workflow creates a unique run directory below each root. After a successful test it removes the temporary `work/` tree; the logs, status, checkout, and archive remain for review and later retention cleanup. Failed runs retain `work/` for debugging.
 
 Arrange approved SSH access from GitHub-hosted runners to Gadi for each identity. Verify Gadi's SSH host key through a trusted source and store its known-hosts line in GitHub; the workflow does not trust a key fetched during its run. Use separate SSH keys for PR and production. Do not put private keys or tokens in this repository.
 
