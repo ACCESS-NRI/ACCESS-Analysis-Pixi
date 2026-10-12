@@ -12,6 +12,7 @@ finish() { rc=$?; printf '%s\n' "$rc" > "$status"; exit "$rc"; }
 trap finish EXIT
 trap 'printf "failed line=%s command=%s\n" "$LINENO" "$BASH_COMMAND" >&2' ERR
 source "$repo/config/pins.env"
+PIXI_SOURCE="$repo/.bootstrap/pixi"
 test -d "$repo" && test -f "$repo/pixi.lock"
 test ! -e "$status"
 mkdir -p "$work/project" "$work/cache" "$work/tmp" "$work/xdg" "$work/pixi-home" "$artifact/bin"
@@ -41,3 +42,5 @@ PIXI_CACHE_DIR="$work/verify/cache" PIXI_HOME="$work/verify/pixi-home" \
   "$artifact/bin/pixi" install --locked --manifest-path "$work/verify/project/pixi.toml"
 "$repo/scripts/import-check.sh" "$work/verify/project/.pixi/envs/default/bin/python"
 printf 'build_and_offline_test_passed archive_bytes=%s\n' "$(stat -c %s "$artifact/archive.tar.gz")"
+[[ $work == "$GADI_RUN_DIR/work" && -d $work && ! -L $work ]]
+rm -rf -- "$work"
