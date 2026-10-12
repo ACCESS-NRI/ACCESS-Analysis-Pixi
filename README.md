@@ -1,6 +1,8 @@
 # ACCESS-Analysis-Pixi
 
-ACCESS-Analysis-Pixi is a flexible Python analysis environment for JupyterLab on Gadi's Australian Research Environment (ARE). It provides a shared base of commonly used scientific packages. In your own ARE session, you can add the packages your analysis needs with [Pixi](https://pixi.sh/) without changing the shared base for anyone else.
+ACCESS-Analysis-Pixi is a flexible Python analysis environment for JupyterLab on Gadi's Australian Research Environment (ARE). It addresses the shared filesystem inode problem encountered with Analysis3: instead of keeping an installed environment's many small files on shared storage, each ARE session builds its own copy on fast JOBFS. JOBFS is outside the shared filesystem's inode quota and is cleared when the session ends, so the installed environment exists only for that session.
+
+Everyone starts from the same base of scientific packages. You can then tailor your own dependency stack with [Pixi](https://pixi.sh/), adding packages for your analysis without changing the shared base or another user's environment.
 
 The base includes Python 3.12, Jupyter kernel support, NumPy, SciPy, xarray, Matplotlib, scikit-image, NetworkX, and Zarr. [`pixi.toml`](pixi.toml) defines the base packages, and [`pixi.lock`](pixi.lock) records their exact versions. Packages available for Linux through conda-forge or PyPI can be added when your session has network access and their dependencies are compatible.
 
@@ -13,7 +15,7 @@ In the ARE JupyterLab form:
 3. Set **Module directories** to the installed release's `modulefiles` directory. Set **Modules** to `are-pixi/current`. Ask your project administrator for the module directory if you do not have it.
 4. Start JupyterLab and select the **Python 3.12 (Pixi JOBFS)** kernel for your notebook.
 
-The module copies the base environment into your allocation's JOBFS at startup. Your notebook then uses that private copy. If the kernel is missing, check the ARE job log and `$PBS_JOBFS/are-pixi-py312/startup.log` for the startup error.
+The module unpacks the base onto your allocation's JOBFS and installs it there. Your notebook then uses that private copy. If the kernel is missing, check the ARE job log and `$PBS_JOBFS/are-pixi-py312/startup.log` for the startup error.
 
 ## Add packages for your analysis
 
