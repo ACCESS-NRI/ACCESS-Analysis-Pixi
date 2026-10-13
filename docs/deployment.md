@@ -71,7 +71,9 @@ module use "$GADI_DEPLOY_ROOT/modulefiles"
 module display are-pixi/current
 ```
 
-Then launch an ARE JupyterLab session with the release project in Storage, at least 8 GB JOBFS, module directory `<GADI_DEPLOY_ROOT>/modulefiles`, module `are-pixi/current`, and an empty Pre-script field. Select `Python 3.12 (Pixi JOBFS)`, check the scientific imports, and try one disposable `pixi add` in the session. ARE additions live on that job's JOBFS and do not update the released base. Check the ARE job log if the kernel is missing; a failed module setup may leave the Jupyter server running without the kernel.
+Before inviting users, confirm that `/g/data/xp65/public/modules/are-pixi` exposes the deployed modulefiles and that `module display are-pixi/current` works after `module use /g/data/xp65/public/modules`. The deployment script publishes modulefiles under `GADI_DEPLOY_ROOT`; it does not update the public module directory.
+
+Then launch an ARE JupyterLab session with the release project in Storage, at least 8 GB JOBFS, module directory `/g/data/xp65/public/modules`, module `are-pixi/current`, and an empty Pre-script field. Select `Python 3.12 (Pixi JOBFS)`, check the scientific imports, and try one disposable `pixi add` in the session. ARE additions live on that job's JOBFS and do not update the released base. Check the ARE job log if the kernel is missing; a failed module setup may leave the Jupyter server running without the kernel.
 
 ## 6. Updates and rollback
 
