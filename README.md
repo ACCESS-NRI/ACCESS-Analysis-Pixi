@@ -1,6 +1,6 @@
 # ACCESS-Analysis-Pixi
 
-ACCESS-Analysis-Pixi is a flexible Python analysis environment for JupyterLab on Gadi's Australian Research Environment (ARE). It addresses the shared filesystem inode problem encountered with Analysis3: instead of keeping an installed environment's many small files on shared storage, each ARE session builds its own copy on fast JOBFS. JOBFS is outside the shared filesystem's inode quota and is cleared when the session ends, so the installed environment exists only for that session.
+ACCESS-Analysis-Pixi is a flexible Python analysis environment for JupyterLab on Gadi's Australian Research Environment (ARE). Analysis3 used SquashFS to solve the inode problem for its large Conda environment. Here, the installed analysis environment lives on fast JOBFS, which does not count against the shared filesystem's inode quota. JOBFS is cleared when the ARE job ends, so each session's environment is disposable and no SquashFS layer is needed.
 
 Everyone starts from the same base of scientific packages. You can then tailor your own dependency stack with [Pixi](https://pixi.sh/), adding packages for your analysis without changing the shared base or another user's environment.
 
