@@ -12,7 +12,7 @@ In the ARE JupyterLab form:
 
 1. Choose a project that can read the installed Pixi release. Include that release's `gdata` project and any projects containing your data in **Storage**.
 2. Request at least **8 GB JOBFS**. Leave the Python/Conda virtual environment fields and **Pre-script** empty.
-3. Set **Module directories** to the installed release's `modulefiles` directory. Set **Modules** to `are-pixi/current`. Ask your project administrator for the module directory if you do not have it.
+3. Set **Module directories** to `/g/data/xp65/public/modules` and **Modules** to `are-pixi/current`.
 4. Start JupyterLab and select the **Python 3.12 (Pixi JOBFS)** kernel for your notebook.
 
 The module unpacks the base onto your allocation's JOBFS and installs it there. Your notebook then uses that private copy. If the kernel is missing, check the ARE job log and `$PBS_JOBFS/are-pixi-py312/startup.log` for the startup error.
