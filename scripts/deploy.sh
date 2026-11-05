@@ -33,6 +33,7 @@ if [[ ! -e $release_dir ]]; then
     install -m 0644 "$artifact/archive.tar.gz" "$artifact/archive.tar.gz.sha256" "$artifact/pixi.sha256" "$temp/"
     install -m 0755 "$artifact/bin/pixi" "$temp/bin/pixi"
     install -m 0755 "$GADI_RUN_DIR/repo/runtime/are-prescript.sh" "$temp/bin/are-prescript.sh"
+    install -m 0755 "$GADI_RUN_DIR/repo/runtime/prepare-jobfs.sh" "$temp/bin/prepare-jobfs.sh"
     install -m 0755 "$GADI_RUN_DIR/repo/runtime/pixi-jobfs-wrapper" "$temp/bin/pixi-jobfs-wrapper"
     install -m 0755 "$GADI_RUN_DIR/repo/scripts/import-check.sh" "$temp/bin/import-check.sh"
     install -m 0755 "$GADI_RUN_DIR/repo/scripts/rollback.sh" "$temp/bin/rollback.sh"

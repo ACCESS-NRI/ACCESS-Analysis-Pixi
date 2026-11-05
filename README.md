@@ -1,6 +1,6 @@
 # ACCESS-Analysis-Pixi
 
-ACCESS-Analysis-Pixi is a flexible Python analysis environment for JupyterLab on Gadi's Australian Research Environment (ARE). Analysis3 used SquashFS to solve the inode problem for its large Conda environment. Here, the installed analysis environment lives on fast JOBFS, which does not count against the shared filesystem's inode quota. JOBFS is cleared when the ARE job ends, so each session's environment is disposable and no SquashFS layer is needed.
+ACCESS-Analysis-Pixi is a flexible Python analysis environment for JupyterLab on Gadi's Australian Research Environment (ARE) and single-node PBS batch jobs. Analysis3 used SquashFS to solve the inode problem for its large Conda environment. Here, the installed analysis environment lives on fast JOBFS, which does not count against the shared filesystem's inode quota. JOBFS is cleared when the job ends, so each job's environment is disposable and no SquashFS layer is needed.
 
 Everyone starts from the same base of scientific packages. You can then tailor your own dependency stack with [Pixi](https://pixi.sh/), adding packages for your analysis without changing the shared base or another user's environment.
 
@@ -16,6 +16,27 @@ In the ARE JupyterLab form:
 4. Start JupyterLab and select the **Python 3.12 (Pixi JOBFS)** kernel for your notebook.
 
 The module unpacks the base onto your allocation's JOBFS and installs it there. Your notebook then uses that private copy. If the kernel is missing, check the ARE job log and `$PBS_JOBFS/are-pixi-py312/startup.log` for the startup error.
+
+## Run a PBS batch job
+
+Use [`examples/analysis.pbs`](examples/analysis.pbs) as a starting point. Set your compute project, resources, and all required storage projects, including `gdata/xp65` for the release. Request at least **8 GB JOBFS**, save the script beside your `analysis.py` on persistent storage, and submit it with `qsub analysis.pbs`.
+
+The job loads the same module used in ARE:
+
+```bash
+set -euo pipefail
+module use /g/data/xp65/public/modules
+module load are-pixi/current
+python analysis.py
+```
+
+In an ordinary PBS job, the module prepares the released base offline and puts its Python and command-line tools on `PATH`. No Jupyter configuration or kernel is needed. Keep `set -e` so a failed module load stops the job before your analysis runs. Startup diagnostics go to the job log and `$PBS_JOBFS/are-pixi-py312/startup.log`. In ARE, the presence of `CONFIG_FILE` selects the existing Jupyter setup instead, preserving the server's Python.
+
+Each new job starts from the shared base. Reloading the same release within a job reuses its environment and preserves additions; switching releases requires a new job. For reproducible runs, use a versioned module such as `are-pixi/r-<commit SHA>` instead of `current`. Save results outside JOBFS before the job ends.
+
+Batch jobs set `PIXI_OFFLINE=true`: ordinary Gadi compute queues cannot download missing packages ([NCI queue guidance](https://opus.nci.org.au/spaces/Help/pages/236880996/Queue%2BStructure%2Bon%2BGadi...)). Packages added in another ARE session are not included automatically. Reproducing a customised environment offline requires its manifest, lockfile, and complete package cache; this release supports the shared base and does not yet provide a custom-environment export/import workflow.
+
+This batch setup supports **one compute node**. Multi-node MPI or distributed Dask jobs need the environment prepared separately on every node because JOBFS is node-local; loading the module on the first node does not prepare the others.
 
 ## Add packages for your analysis
 
@@ -40,4 +61,4 @@ If you want a record of your package choices, copy `$PIXI_JOBFS_PROJECT/pixi.tom
 
 The shared base is built from the checked-in manifest and lock file, tested on Gadi, and deployed as a versioned release. The `are-pixi/current` module points to the active release; older versioned modules remain available. See the [deployment and rollback guide](docs/deployment.md) for GitHub Actions setup, Gadi requirements, release verification, and base package updates.
 
-Run `bash scripts/check.sh` for local manifest, pin, and shell checks. The protected Gadi checks exercise the package build and offline installation.
+Run `bash scripts/check.sh` for local manifest, pin, and shell checks. Run `bash tests/runtime.sh` with Environment Modules installed (or set `MODULES_INIT` to its Bash initialization script) to test batch and ARE startup using a small fake package installer. The protected Gadi checks exercise the real package build and offline installation through the batch module.

@@ -31,16 +31,26 @@ rm -rf "$work/project/.pixi"
 tar -C "$work" -czf "$artifact/archive.tar.gz" cache project/pixi.toml project/pixi.lock
 ( cd "$artifact" && sha256sum archive.tar.gz > archive.tar.gz.sha256 && sha256sum bin/pixi > pixi.sha256 )
 
-# Relocate the archive and install using only its cache. This is the PR gate.
-mkdir "$work/verify"
-tar -xzf "$artifact/archive.tar.gz" -C "$work/verify"
-mkdir -p "$work/verify/pixi-home" "$work/verify/tmp" "$work/verify/xdg"
-cmp "$repo/pixi.toml" "$work/verify/project/pixi.toml"
-cmp "$repo/pixi.lock" "$work/verify/project/pixi.lock"
-PIXI_CACHE_DIR="$work/verify/cache" PIXI_HOME="$work/verify/pixi-home" \
-  TMPDIR="$work/verify/tmp" XDG_CACHE_HOME="$work/verify/xdg" PIXI_OFFLINE=true \
-  "$artifact/bin/pixi" install --locked --manifest-path "$work/verify/project/pixi.toml"
-"$repo/scripts/import-check.sh" "$work/verify/project/.pixi/envs/default/bin/python"
+# Exercise the batch module with the real archive in a second, offline prefix.
+# Builds use scratch (copyq need not provide JOBFS); a normal-queue JOBFS smoke
+# test remains part of release verification.
+install -m 0755 "$repo/runtime/prepare-jobfs.sh" "$repo/runtime/are-prescript.sh" \
+  "$repo/runtime/pixi-jobfs-wrapper" "$repo/scripts/import-check.sh" "$artifact/bin/"
+mkdir -p "$work/modulefiles/are-pixi"
+sed "s|@RELEASE@|$artifact|g" "$repo/runtime/modulefile.tcl.in" > "$work/modulefiles/are-pixi/test"
+(
+    unset CONFIG_FILE
+    export PBS_JOBFS="$work/verify"
+    module use "$work/modulefiles"
+    module load are-pixi/test
+    test "$(command -v python)" = "$PIXI_JOBFS_PROJECT/.pixi/envs/default/bin/python"
+    test "$PIXI_OFFLINE" = true
+    cmp "$repo/pixi.toml" "$PIXI_JOBFS_PROJECT/pixi.toml"
+    cmp "$repo/pixi.lock" "$PIXI_JOBFS_PROJECT/pixi.lock"
+    "$repo/scripts/import-check.sh" "$(command -v python)"
+    test ! -e "$PBS_JOBFS/are-pixi-py312/kernels"
+    module unload are-pixi/test
+)
 printf 'build_and_offline_test_passed archive_bytes=%s\n' "$(stat -c %s "$artifact/archive.tar.gz")"
 [[ $work == "$GADI_RUN_DIR/work" && -d $work && ! -L $work ]]
 rm -rf -- "$work"
