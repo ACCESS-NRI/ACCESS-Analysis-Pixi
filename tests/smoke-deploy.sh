@@ -22,6 +22,7 @@ for sha in "$first" "$second"; do
       bash "$repo/scripts/deploy.sh"
 done
 test "$(readlink "$root/modulefiles/are-pixi/current")" = "r-$second"
+test -x "$root/releases/r-$second/bin/prepare-jobfs.sh"
 cp "$stage/artifact/archive.tar.gz.sha256" "$temp/good.sha256"
 printf '%064d  archive.tar.gz\n' 0 > "$stage/artifact/archive.tar.gz.sha256"
 if ALLOW_TEST_ROOT=1 GADI_DEPLOY_ROOT="$root" GADI_RUN_DIR="$stage" RELEASE_SHA="$(printf 'c%.0s' {1..40})" \

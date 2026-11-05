@@ -1,17 +1,43 @@
 #%Module1.0
-module-whatis "Prepare the Pixi Python 3.12 Jupyter kernel on ARE JOBFS"
+module-whatis "Prepare Pixi Python 3.12 on JOBFS for ARE or single-node PBS jobs"
+conflict are-pixi
+set release @RELEASE@
+set are [expr {[info exists env(CONFIG_FILE)] && $env(CONFIG_FILE) ne ""}]
 if {[module-info mode load]} {
-    foreach required {PBS_JOBID PBS_JOBFS CONFIG_FILE} {
+    foreach required {PBS_JOBID PBS_JOBFS} {
         if {![info exists env($required)] || $env($required) eq ""} {
-            error "This module requires an ARE Jupyter PBS job ($required missing)"
+            error "This module requires a PBS allocation ($required missing)"
         }
     }
-    if {![file isfile $env(CONFIG_FILE)]} {
-        error "ARE Jupyter config does not exist"
+    if {$are} {
+        if {![file isfile $env(CONFIG_FILE)]} {
+            error "ARE Jupyter config does not exist"
+        }
+        set script $release/bin/are-prescript.sh
+    } else {
+        set script $release/bin/prepare-jobfs.sh
     }
-    set script @RELEASE@/bin/are-prescript.sh
     set status [system $script]
     if {$status != 0} {
-        error "Pixi JOBFS setup failed (exit $status); inspect the ARE job log"
+        error "Pixi JOBFS setup failed (exit $status); inspect the job log and \$PBS_JOBFS/are-pixi-py312/startup.log"
     }
+}
+
+# ARE configures its kernel and terminals through CONFIG_FILE. Do not change
+# its server's Python. Batch jobs instead need these settings in their shell.
+if {!$are && [info exists env(PBS_JOBFS)] && $env(PBS_JOBFS) ne ""} {
+    set work $env(PBS_JOBFS)/are-pixi-py312
+    setenv PIXI_JOBFS_PROJECT $work/project
+    setenv PIXI_REAL $release/bin/pixi
+    setenv PIXI_CACHE_DIR $work/cache
+    setenv PIXI_HOME $work/pixi-home
+    setenv PIXI_OFFLINE true
+    setenv TMPDIR $work/tmp
+    setenv MPLCONFIGDIR $work/matplotlib
+    setenv XDG_CACHE_HOME $work/xdg-cache
+    setenv PYTHONNOUSERSITE 1
+    unsetenv PYTHONPATH
+    unsetenv PYTHONHOME
+    prepend-path PATH $work/project/.pixi/envs/default/bin
+    prepend-path PATH $work/bin
 }

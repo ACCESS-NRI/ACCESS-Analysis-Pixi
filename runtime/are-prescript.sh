@@ -10,18 +10,12 @@ work="$PBS_JOBFS/are-pixi-py312"
 project="$work/project"
 kernel_root="$work/kernels/share/jupyter/kernels"
 kernel=are-pixi-py312
-mkdir -p "$work/bin" "$work/tmp" "$work/matplotlib" "$work/xdg-cache" "$work/pixi-home" "$kernel_root"
+"$release/bin/prepare-jobfs.sh"
+mkdir -p "$kernel_root"
 exec > >(tee -a "$work/startup.log") 2>&1
-printf 'Pixi release=%s job=%s\n' "$release" "$PBS_JOBID"
-( cd "$release" && sha256sum -c archive.tar.gz.sha256 && sha256sum -c pixi.sha256 )
-cp "$release/bin/pixi-jobfs-wrapper" "$work/bin/pixi"
-chmod 755 "$work/bin/pixi"
-tar -xzf "$release/archive.tar.gz" -C "$work" --no-same-owner --no-same-permissions
 export PIXI_CACHE_DIR="$work/cache" PIXI_HOME="$work/pixi-home" TMPDIR="$work/tmp" XDG_CACHE_HOME="$work/xdg-cache"
-export PYTHONNOUSERSITE=1
+export MPLCONFIGDIR="$work/matplotlib" PYTHONNOUSERSITE=1
 unset PYTHONPATH PYTHONHOME
-PIXI_OFFLINE=true "$release/bin/pixi" install --locked --manifest-path "$project/pixi.toml"
-"$release/bin/import-check.sh" "$project/.pixi/envs/default/bin/python"
 "$project/.pixi/envs/default/bin/python" -m ipykernel install --prefix "$work/kernels" \
   --name "$kernel" --display-name 'Python 3.12 (Pixi JOBFS)'
 "$project/.pixi/envs/default/bin/python" - "$work" "$kernel_root" "$kernel" "$CONFIG_FILE" "$release" <<'PY'

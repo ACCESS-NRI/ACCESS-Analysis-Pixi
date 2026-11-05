@@ -1,0 +1,19 @@
+#!/bin/bash
+# Replace iq82 with your compute project, and include all input/output storage.
+#PBS -N pixi-analysis
+#PBS -P iq82
+#PBS -q normal
+#PBS -l ncpus=1
+#PBS -l mem=4GB
+#PBS -l jobfs=8GB
+#PBS -l walltime=00:30:00
+#PBS -l storage=gdata/xp65+scratch/iq82
+#PBS -l wd
+set -euo pipefail
+
+module use /g/data/xp65/public/modules
+# For reproducible runs, replace current with a deployed r-<commit SHA> version.
+module load are-pixi/current
+
+# Runs from the submission directory; save results on persistent storage.
+python analysis.py

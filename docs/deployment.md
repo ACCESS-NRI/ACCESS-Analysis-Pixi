@@ -57,7 +57,7 @@ The workflow validates the value shapes before opening SSH. Use paths without sp
 
 Protect `main` in **Settings → Rules → Rulesets** or branch protection: require a PR and approving review, block direct pushes and force pushes, and require the `local-check` and `gadi` checks. If GitHub does not yet list those checks, open one in-repository trial PR, let the checks run, and then make them required before merging. The PR account must be limited to scratch because the PR's scripts are what the Gadi job executes. Fork PRs fail the local gate and must be moved to a reviewed branch in this repository before a Gadi test.
 
-For the trial PR, approve the `gadi-pr` environment request after reviewing the workflow and code. A successful Gadi check means the PBS job built the archive from the checked-in lock, unpacked it to a second prefix, installed with `PIXI_OFFLINE=true`, and passed the Python import check. Inspect its scratch `logs/`, `status`, archive checksum, and GitHub job result. A missing or nonzero PBS status fails the check. GitHub's [branch protection guidance](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches) covers required reviews and status checks.
+For the trial PR, approve the `gadi-pr` environment request after reviewing the workflow and code. A successful Gadi check means the PBS job built the archive from the checked-in lock, loaded the batch module without `CONFIG_FILE`, installed offline into a second prefix, and passed the Python import check using the module's `PATH`. This test redirects `PBS_JOBFS` to temporary scratch because the build queue need not provide JOBFS. Inspect its scratch `logs/`, `status`, archive checksum, and GitHub job result. A missing or nonzero PBS status fails the check. GitHub's [branch protection guidance](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches) covers required reviews and status checks.
 
 ## 5. Make the first release
 
@@ -74,6 +74,8 @@ module display are-pixi/current
 Before inviting users, confirm that `/g/data/xp65/public/modules/are-pixi` exposes the deployed modulefiles and that `module display are-pixi/current` works after `module use /g/data/xp65/public/modules`. The deployment script publishes modulefiles under `GADI_DEPLOY_ROOT`; it does not update the public module directory.
 
 Then launch an ARE JupyterLab session with the release project in Storage, at least 8 GB JOBFS, module directory `/g/data/xp65/public/modules`, module `are-pixi/current`, and an empty Pre-script field. Select `Python 3.12 (Pixi JOBFS)`, check the scientific imports, and try one disposable `pixi add` in the session. ARE additions live on that job's JOBFS and do not update the released base. Check the ARE job log if the kernel is missing; a failed module setup may leave the Jupyter server running without the kernel.
+
+Also submit `examples/analysis.pbs` on `normal` with your project and storage settings and an `analysis.py` that prints `sys.executable` and imports the base packages. Confirm that Python runs from this job's JOBFS, the imports pass without network access, and no Jupyter kernel is registered. The module must load without `CONFIG_FILE`. This validates the real JOBFS path in addition to the scratch-based CI check. Batch support is limited to single-node jobs; a multi-node launcher and custom ARE environment export are separate work.
 
 ## 6. Updates and rollback
 
